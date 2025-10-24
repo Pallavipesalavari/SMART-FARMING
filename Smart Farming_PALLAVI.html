@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Smart Farming — Crop Selection + AI Doctor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    color: #fff;
+    background-image: linear-gradient(rgba(4,44,12,0.45), rgba(4,44,12,0.45)),
+      url('https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1600&q=80');
+    background-size: cover;
+    background-position: center;
+    text-align: center;
+    padding: 2rem;
+    position: relative;
+    transition: background-image 1s ease-in-out;
+  }
+
+  .slide { display: none; width: 100%; max-width: 960px; backdrop-filter: blur(6px) saturate(120%); background: rgba(255,255,255,0.08); border-radius: 16px; padding: 2.2rem 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+  .slide.active { display: block; }
+  h1 { font-size: 2.1rem; margin-bottom: 0.6rem; text-transform: uppercase; }
+  h2 { margin-bottom: 0.5rem; }
+  p { margin: 0.45rem 0; }
+  .btn { position: absolute; top: 2rem; padding: 0.6rem 1.2rem; background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; cursor: pointer; transition: background 0.25s; }
+  .btn:hover { background: rgba(255,255,255,0.35); }
+  .btn-next { right: 2rem; }
+  .btn-back { left: 2rem; display:none; }
+
+  .columns { display:flex; gap:1.2rem; flex-wrap:wrap; justify-content:center; }
+  .column { flex:1 1 280px; background: rgba(255,255,255,0.12); padding:1.2rem; border-radius:10px; cursor:pointer; transition: transform 0.22s, box-shadow 0.22s; }
+  .column:hover { transform: translateY(-6px); box-shadow: 0 10px 25px rgba(0,0,0,0.45); }
+
+  button.option-btn { margin:0.4rem; padding:0.45rem 0.9rem; border:none; border-radius:6px; cursor:pointer; background: rgba(255,255,255,0.16); color:#fff; font-weight:600; transition: transform 0.15s, background 0.2s; }
+  button.option-btn:hover { transform: translateY(-3px); background: rgba(255,255,255,0.28); }
+
+  input[type="text"], textarea { padding:0.6rem; border-radius:6px; border:none; width:80%; max-width:420px; }
+  input[type="file"] { margin-top:0.5rem; color: #fff; }
+
+  #workflow { margin-top:1rem; display:flex; flex-direction:column; align-items:center; }
+  #seasonContainer, .soilContainer, .cropContainer { display:flex; flex-wrap:wrap; gap:0.85rem; justify-content:center; margin-top:1rem; }
+
+  .details-box { margin-top:1rem; background: rgba(255,255,255,0.12); border-radius:10px; padding:1rem; max-width:520px; text-align:left; animation: fadeIn 0.35s ease-in; display:none; white-space:pre-wrap; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* --- AI result area --- */
+  #aiContainer { display:flex; flex-direction:column; align-items:center; margin-top:1rem; }
+  #aiContainer textarea { width:80%; max-width:520px; height:110px; margin-top:0.6rem; padding:0.6rem; border-radius:6px; border:none; }
+  #aiResult { margin-top:1rem; width:80%; max-width:520px; min-height:90px; background: rgba(0,0,0,0.45); border-radius:8px; padding:1rem; text-align:left; display:none; white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; line-height:1.45; color:#eafff3; }
+
+  /* scanning progress */
+  .scan-wrap { width:80%; max-width:520px; margin-top:0.9rem; display:none; align-items:center; gap:0.8rem; }
+  .scan-bar-bg { flex:1; height:12px; background: rgba(255,255,255,0.12); border-radius:999px; overflow:hidden; }
+  .scan-bar { width:0%; height:100%; background: linear-gradient(90deg,#6fffb0,#2fe6d6); transition: width 0.2s linear; }
+  .scan-percent { min-width:48px; text-align:right; font-weight:600; color:#dfffe8; }
+
+  /* typing cursor style */
+  .ai-cursor { display:inline-block; width:10px; height:1.2em; background:#dfffe8; margin-left:6px; animation: blink 0.8s steps(2) infinite; vertical-align:middle; }
+  @keyframes blink { 50% { opacity:0; } 100% { opacity:1; } }
+
+  .muted { color:rgba(255,255,255,0.85); font-size:0.95rem; margin-top:0.4rem; }
+  .small { font-size:0.9rem; color:rgba(255,255,255,0.9); margin-top:0.35rem; }
+</style>
+</head>
+<body>
+
+<!-- Slide 1 -->
+<div class="slide active" id="slide1">
+  <h1>WELCOME TO SMART FARMING</h1>
+  <p class="muted">A simple starter page — expand this with sections for sensors, crop data, tips and more.</p>
+</div>
+
+<!-- Slide 2 -->
+<div class="slide" id="slide2">
+  <h1>OUR TOOLS</h1>
+  <div class="columns">
+    <div class="column" id="cropSelection">
+      <h2>CROP SELECTION</h2>
+      <p class="small">Find the best crops for your region and soil type.</p>
+    </div>
+    <div class="column" id="aiDoctor">
+      <h2>AI CROP DOCTOR</h2>
+      <p class="small">Detect crop diseases and get AI-based solutions.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 3: Crop Selection -->
+<div class="slide" id="slideCrop">
+  <h1>CROP SELECTION</h1>
+  <div id="locationStep">
+    <p class="muted">Would you like to use automatic geolocation?</p>
+    <button class="option-btn" id="autoYes">Yes, detect automatically</button>
+    <button class="option-btn" id="autoNo">No, I’ll enter manually</button>
+  </div>
+  <div id="manualLocationDiv" style="display:none;">
+    <p class="muted">Enter your location (city or region):</p>
+    <input type="text" id="manualLocationInput" placeholder="e.g., Hyderabad, Delhi">
+    <button class="option-btn" id="submitLocation">Submit</button>
+  </div>
+  <p id="detectedLocation" class="muted"></p>
+
+  <div id="workflow">
+    <div id="seasonContainer"></div>
+  </div>
+
+  <div class="details-box" id="cropDetailsBox" style="display:none;"></div>
+</div>
+
+<!-- Slide 4: AI Crop Doctor -->
+<div class="slide" id="slideAI">
+  <h1>AI CROP DOCTOR</h1>
+  <div id="aiContainer">
+    <p class="muted">Describe symptoms or upload a plant image to scan.</p>
+    <input type="file" id="plantImage" accept="image/*">
+    <textarea id="aiQuery" placeholder="e.g., yellowing leaves, brown spots, holes in leaves..."></textarea>
+
+    <div style="display:flex; gap:0.6rem; margin-top:0.6rem;">
+      <button class="option-btn" id="submitQuery">Get Solution (Text)</button>
+      <button class="option-btn" id="scanBtn">Scan Plant (Image)</button>
+    </div>
+
+    <div class="scan-wrap" id="scanWrap">
+      <div class="scan-bar-bg"><div class="scan-bar" id="scanBar"></div></div>
+      <div class="scan-percent" id="scanPercent">0%</div>
+    </div>
+
+    <div id="aiResult"></div>
+  </div>
+</div>
+
+<!-- Navigation -->
+<button class="btn btn-next" id="nextBtn">Next</button>
+<button class="btn btn-back" id="backBtn">Back</button>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // --- Slides navigation ---
+  const slides = [
+    document.getElementById('slide1'),
+    document.getElementById('slide2'),
+    document.getElementById('slideCrop'),
+    document.getElementById('slideAI')
+  ];
+  const nextBtn = document.getElementById('nextBtn');
+  const backBtn = document.getElementById('backBtn');
+
+  function show(index){
+    slides.forEach((s,i)=> s.classList.toggle('active', i===index));
+    backBtn.style.display = index === 0 ? 'none' : 'block';
+    nextBtn.style.display = index === slides.length-1 ? 'none' : 'block';
+  }
+
+  nextBtn.addEventListener('click', ()=> show(1));
+  backBtn.addEventListener('click', ()=> {
+    // if currently in tools slide go back to welcome (or behave logically)
+    if (slides[2].classList.contains('active') || slides[3].classList.contains('active')) show(1);
+    else show(0);
+  });
+
+  document.getElementById('cropSelection').addEventListener('click', ()=> show(2));
+  document.getElementById('aiDoctor').addEventListener('click', ()=> { show(3); clearAIResult(); });
+
+  // --- Crop selection data (complete mapping for soils & seasons) ---
+  const seasonBackgrounds = {
+    'Winter': "url('https://i.pinimg.com/originals/e4/a6/b9/e4a6b92746b595562938d01b6a5e4445.gif')",
+    'Summer': "url('https://media2.giphy.com/media/ToXKNQZXzu6dHD0nAJ/giphy.gif')",
+    'Monsoon': "url('https://media1.tenor.com/m/NJInUz6xITsAAAAd/rain-rainy-day.gif')"
+  };
+
+  const soilTypesBySeason = {
+    'Winter': ['Clay', 'Sandy', 'Loamy', 'Silty'],
+    'Summer': ['Sandy', 'Loamy', 'Peaty', 'Chalky'],
+    'Monsoon': ['Clay', 'Sandy', 'Loamy', 'Silty']
+  };
+
+  // Full cropData similar to earlier example, covering all soils requested
+  const cropData = {
+    'Winter': {
+      'Clay': [
+        { name: 'Wheat', duration: '4 months', fertilizers: 'Urea, DAP', pesticides: 'Carbendazim' },
+        { name: 'Barley', duration: '5 months', fertilizers: 'NPK mix', pesticides: 'Chlorpyrifos' }
+      ],
+      'Sandy': [
+        { name: 'Mustard', duration: '3.5 months', fertilizers: 'Urea', pesticides: 'Malathion' },
+        { name: 'Peas', duration: '4 months', fertilizers: 'Compost', pesticides: 'Neem oil' }
+      ],
+      'Loamy': [
+        { name: 'Carrot', duration: '3 months', fertilizers: 'Organic manure', pesticides: 'Copper oxychloride' },
+        { name: 'Potato', duration: '3-4 months', fertilizers: 'NPK mix', pesticides: 'Imidacloprid' }
+      ],
+      'Silty': [
+        { name: 'Wheat (Silty)', duration: '4 months', fertilizers: 'Urea, DAP', pesticides: 'Carbendazim' },
+        { name: 'Spinach', duration: '2 months', fertilizers: 'Compost', pesticides: 'Neem oil' }
+      ]
+    },
+    'Summer': {
+      'Sandy': [
+        { name: 'Groundnut', duration: '5 months', fertilizers: 'Gypsum, SSP', pesticides: 'Dimethoate' },
+        { name: 'Millet', duration: '4 months', fertilizers: 'Urea', pesticides: 'Quinalphos' }
+      ],
+      'Loamy': [
+        { name: 'Cotton', duration: '6 months', fertilizers: 'Potash', pesticides: 'Recommended by extension' },
+        { name: 'Sunflower', duration: '4.5 months', fertilizers: 'Phosphate', pesticides: 'Carbaryl' }
+      ],
+      'Peaty': [
+        { name: 'Tobacco', duration: '6 months', fertilizers: 'Nitrogen rich', pesticides: 'As needed' },
+        { name: 'Rice (Peaty areas)', duration: '4-5 months', fertilizers: 'Urea, Potash', pesticides: 'Chlorpyrifos' }
+      ],
+      'Chalky': [
+        { name: 'Barley (Chalky)', duration: '5 months', fertilizers: 'NPK mix', pesticides: 'As needed' },
+        { name: 'Millet (Chalky)', duration: '4 months', fertilizers: 'Urea', pesticides: 'As needed' }
+      ]
+    },
+    'Monsoon': {
+      'Clay': [
+        { name: 'Rice', duration: '4-5 months', fertilizers: 'Urea, Potash', pesticides: 'Chlorpyrifos' },
+        { name: 'Jute', duration: '4 months', fertilizers: 'NPK', pesticides: 'Malathion' }
+      ],
+      'Sandy': [
+        { name: 'Maize', duration: '3 months', fertilizers: 'NPK mix', pesticides: 'Atrazine' },
+        { name: 'Soybean', duration: '4 months', fertilizers: 'Phosphate', pesticides: 'Imidacloprid' }
+      ],
+      'Loamy': [
+        { name: 'Sugarcane', duration: '10-12 months', fertilizers: 'NPK', pesticides: 'As recommended' },
+        { name: 'Maize (Loamy)', duration: '3 months', fertilizers: 'NPK mix', pesticides: 'Atrazine' }
+      ],
+      'Silty': [
+        { name: 'Paddy (Silty)', duration: '4-5 months', fertilizers: 'Urea, Potash', pesticides: 'Chlorpyrifos' },
+        { name: 'Vegetables (Silty)', duration: 'Varies', fertilizers: 'Compost', pesticides: 'Neem oil' }
+      ]
+    }
+  };
+
+  // UI elements
+  const seasonContainerEl = document.getElementById('seasonContainer');
+  const detectedLocationEl = document.getElementById('detectedLocation');
+  const cropDetailsBox = document.getElementById('cropDetailsBox');
+
+  let userLocation = "Default";
+
+  // Location setup actions
+  document.getElementById('autoYes').addEventListener('click', () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(() => {
+        userLocation = "Your current location";
+        detectedLocationEl.innerText = `Detected location automatically 🌍`;
+        initializeSeasons();
+      }, () => {
+        detectedLocationEl.innerText = 'Could not detect location.';
+        initializeSeasons();
+      });
+    } else {
+      detectedLocationEl.innerText = 'Geolocation not supported.';
+      initializeSeasons();
+    }
+  });
+
+  document.getElementById('autoNo').addEventListener('click', () => {
+    document.getElementById('manualLocationDiv').style.display = 'block';
+  });
+
+  document.getElementById('submitLocation').addEventListener('click', () => {
+    const loc = document.getElementById('manualLocationInput').value.trim();
+    if (loc) {
+      userLocation = loc;
+      detectedLocationEl.innerText = `Location set: ${loc}`;
+      initializeSeasons();
+    }
+  });
+
+  // Build season buttons
+  function initializeSeasons() {
+    seasonContainerEl.innerHTML = '<p class="muted"><strong>Select a season:</strong></p>';
+    Object.keys(soilTypesBySeason).forEach(season => {
+      const btn = document.createElement('button');
+      btn.textContent = season;
+      btn.className = 'option-btn';
+      btn.addEventListener('click', () => {
+        // change background for feel
+        const gif = seasonBackgrounds[season] || '';
+        document.body.style.backgroundImage = `${gif}, linear-gradient(rgba(4,44,12,0.45), rgba(4,44,12,0.45))`;
+        showSoilTypes(season);
+      });
+      seasonContainerEl.appendChild(btn);
+    });
+  }
+
+  function showSoilTypes(season) {
+    document.querySelector('.soilContainer')?.remove();
+    document.querySelector('.cropContainer')?.remove();
+    cropDetailsBox.style.display = 'none';
+
+    const soilDiv = document.createElement('div');
+    soilDiv.className = 'soilContainer';
+    soilDiv.innerHTML = `<p class="muted"><strong>Select soil type for ${season}:</strong></p>`;
+
+    (soilTypesBySeason[season] || []).forEach(soil => {
+      const btn = document.createElement('button');
+      btn.textContent = soil;
+      btn.className = 'option-btn';
+      btn.addEventListener('click', () => showCrops(season, soil));
+      soilDiv.appendChild(btn);
+    });
+
+    seasonContainerEl.insertAdjacentElement('afterend', soilDiv);
+  }
+
+  function showCrops(season, soil) {
+    document.querySelector('.cropContainer')?.remove();
+    cropDetailsBox.style.display = 'none';
+
+    const cropDiv = document.createElement('div');
+    cropDiv.className = 'cropContainer';
+    cropDiv.innerHTML = `<p class="muted"><strong>Possible crops for ${soil} soil in ${season} season (${userLocation}):</strong></p>`;
+
+    const crops = (cropData[season] && cropData[season][soil]) || [];
+    if (crops.length === 0) {
+      const note = document.createElement('p');
+      note.textContent = 'No crop suggestions available for this combination.';
+      note.className = 'muted';
+      cropDiv.appendChild(note);
+    } else {
+      crops.forEach(crop => {
+        const btn = document.createElement('button');
+        btn.textContent = crop.name;
+        btn.className = 'option-btn';
+        btn.title = 'Click to view details';
+        btn.addEventListener('click', () => showCropDetails(crop));
+        cropDiv.appendChild(btn);
+      });
+    }
+
+    document.querySelector('.soilContainer').insertAdjacentElement('afterend', cropDiv);
+  }
+
+  function showCropDetails(crop) {
+    cropDetailsBox.innerHTML = `
+      <h3>🌾 ${crop.name}</h3>
+      <p><strong>Duration:</strong> ${crop.duration}</p>
+      <p><strong>Fertilizers:</strong> ${crop.fertilizers}</p>
+      <p><strong>Pesticides:</strong> ${crop.pesticides}</p>
+    `;
+    cropDetailsBox.style.display = 'block';
+    cropDetailsBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // --- AI Crop Doctor (scan + typing) ---
+  const queryBtn = document.getElementById('submitQuery');
+  const scanBtn = document.getElementById('scanBtn');
+  const queryInput = document.getElementById('aiQuery');
+  const plantInput = document.getElementById('plantImage');
+  const aiResult = document.getElementById('aiResult');
+  const scanWrap = document.getElementById('scanWrap');
+  const scanBar = document.getElementById('scanBar');
+  const scanPercent = document.getElementById('scanPercent');
+
+  // ai "knowledge"
+  const aiDatabase = {
+    'leaf blight': {solution:'Apply fungicides like Copper Oxychloride or Mancozeb.', prevention:'Use resistant varieties, proper spacing, and avoid overhead watering.'},
+    'leaf spot': {solution:'Remove affected leaves and apply fungicide.', prevention:'Ensure proper spacing and avoid overhead irrigation.'},
+    'yellowing leaves': {solution:'Check for nutrient deficiency; apply N-rich fertilizer if needed.', prevention:'Regular soil testing and balanced fertilization.'},
+    'pest infestation': {solution:'Use neem oil or recommended insecticides; encourage predators.', prevention:'Rotate crops and maintain field hygiene.'},
+    'aphids': {solution:'Use Neem oil or Imidacloprid; encourage natural predators.', prevention:'Monitor plants regularly and promote beneficial insects.'},
+    'chlorosis': {solution:'Apply iron chelates if iron-deficient; check soil pH.', prevention:'Maintain soil organic matter and appropriate pH.'}
+  };
+
+  function clearAIResult(){
+    aiResult.style.display = 'none';
+    aiResult.textContent = '';
+    scanWrap.style.display = 'none';
+    scanBar.style.width = '0%';
+    scanPercent.textContent = '0%';
+  }
+
+  // typing animation
+  function typeText(targetEl, text, speed = 18){
+    return new Promise(resolve => {
+      targetEl.textContent = '';
+      targetEl.style.display = 'block';
+      let i = 0;
+      const cursor = document.createElement('span'); cursor.className = 'ai-cursor';
+      targetEl.appendChild(cursor);
+
+      function step(){
+        if (i < text.length){
+          cursor.remove();
+          targetEl.textContent += text.charAt(i);
+          i++;
+          targetEl.appendChild(cursor);
+          setTimeout(step, speed);
+        } else {
+          cursor.remove();
+          resolve();
+        }
+      }
+      step();
+    });
+  }
+
+  // scan simulation (0->100)
+  function runScanSimulation(durationMs = 2200){
+    return new Promise(resolve => {
+      scanWrap.style.display = 'flex';
+      scanBar.style.width = '0%';
+      scanPercent.textContent = '0%';
+      const start = performance.now();
+      const step = () => {
+        const now = performance.now();
+        const t = Math.min(1, (now - start) / durationMs);
+        const pct = Math.floor(t * 100);
+        scanBar.style.width = pct + '%';
+        scanPercent.textContent = pct + '%';
+        if (t < 1) requestAnimationFrame(step);
+        else {
+          setTimeout(() => {
+            scanBar.style.width = '100%';
+            scanPercent.textContent = '100%';
+            setTimeout(()=> resolve(), 180);
+          }, 120);
+        }
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  function findMatch(query){
+    query = (query||'').toLowerCase();
+    for (const key of Object.keys(aiDatabase)){
+      if (query.includes(key)) return key;
+    }
+    return null;
+  }
+
+  async function presentDiagnosis(matchKey){
+    const { solution, prevention } = aiDatabase[matchKey];
+    const msg = `🧠 AI Diagnosis Complete\n\nDetected: ${matchKey}\n\nSolution: ${solution}\n\nPrevention: ${prevention}`;
+    await typeText(aiResult, msg, 18);
+  }
+
+  queryBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    clearAIResult();
+    const query = (queryInput.value || '').trim();
+    if (!query) { alert('Please describe the issue first.'); return; }
+    aiResult.style.display = 'block';
+    aiResult.textContent = '';
+    await runScanSimulation(2000);
+    const match = findMatch(query);
+    if (match) {
+      await presentDiagnosis(match);
+    } else {
+      await typeText(aiResult, "Sorry, I couldn't find an exact match. Try rephrasing your description or upload a clearer image.", 18);
+    }
+  });
+
+  scanBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    clearAIResult();
+    if (!plantInput.files || !plantInput.files[0]) { alert('Please select an image to scan.'); return; }
+    aiResult.style.display = 'block';
+    aiResult.textContent = '';
+    await runScanSimulation(2400);
+    const keys = Object.keys(aiDatabase);
+    const detected = keys[Math.floor(Math.random() * keys.length)];
+    await presentDiagnosis(detected);
+  });
+
+  // init: hide result area
+  clearAIResult();
+
+}); // DOMContentLoaded
+</script>
+</body>
+</html>
